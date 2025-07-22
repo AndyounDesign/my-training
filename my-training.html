@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plano de Treino Interativo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Earth -->
+    <!-- Application Structure Plan: A tab-based navigation SPA. The main view features buttons for each workout day ("Dia 1" to "Dia 5"). Clicking a button dynamically displays that day's workout details in a central content area. A separate "Informações" button opens a modal with general guidelines, principles for knee health, and a summary chart. This structure was chosen for its task-oriented design, allowing the user to instantly access "what to do today" without scrolling through a long document. It separates primary daily tasks from secondary reference information, creating a clean and efficient user experience. -->
+    <!-- Visualization & Content Choices: 
+        - Workout Plan Structure -> Goal: Organize/Inform -> Viz/Presentation: Interactive Tabs/Cards -> Interaction: Click to switch days. Justification: Most intuitive navigation for a multi-day plan, presenting information in digestible chunks.
+        - Muscle Group Distribution -> Goal: Inform -> Viz/Presentation: Chart.js Doughnut Chart in a modal. Justification: Provides a quick visual summary of the weekly training focus without cluttering the main view.
+        - Exercise List -> Goal: Organize -> Viz/Presentation: HTML/CSS Cards. Justification: Clean, scannable, and responsive way to display individual exercise details.
+        - General Principles/Notes -> Goal: Inform -> Viz/Presentation: Text blocks within a modal. Justification: Hides supplementary info to keep the main UI clean, but makes it easily accessible.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f5f5f4; /* stone-100 */
+        }
+        /* A classe active-day não é mais necessária para as cores, pois as classes Tailwind serão aplicadas diretamente. */
+        .active-day-visual { /* Mantida para o efeito de transformação e sombra, se desejado */
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 350px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 80vw;
+        }
+    </style>
+</head>
+<body class="text-stone-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-teal-700">Plano de Treino de 5 Dias</h1>
+            <p class="mt-2 text-stone-600">Foco em Hipertrofia e Fortalecimento com adaptações para Condropatia Patelar.</p>
+        </header>
+
+        <nav class="flex flex-wrap justify-center gap-2 md:gap-4 mb-8">
+            <button data-day="dia1" class="day-btn px-4 py-2 rounded-lg font-semibold shadow-sm transition-all duration-200 ease-in-out bg-white hover:bg-teal-50">Dia 1</button>
+            <button data-day="dia2" class="day-btn px-4 py-2 rounded-lg font-semibold shadow-sm transition-all duration-200 ease-in-out bg-white hover:bg-teal-50">Dia 2</button>
+            <button data-day="dia3" class="day-btn px-4 py-2 rounded-lg font-semibold shadow-sm transition-all duration-200 ease-in-out bg-white hover:bg-teal-50">Dia 3</button>
+            <button data-day="dia4" class="day-btn px-4 py-2 rounded-lg font-semibold shadow-sm transition-all duration-200 ease-in-out bg-white hover:bg-teal-50">Dia 4</button>
+            <button data-day="dia5" class="day-btn px-4 py-2 rounded-lg font-semibold shadow-sm transition-all duration-200 ease-in-out bg-white hover:bg-teal-50">Dia 5</button>
+            <button id="info-btn" class="px-4 py-2 rounded-lg font-semibold shadow-sm transition-all duration-200 ease-in-out bg-stone-200 hover:bg-stone-300 text-stone-700">
+                <span class="hidden sm:inline">Informações Gerais</span>
+                <span class="sm:hidden">Info</span>
+            </button>
+        </nav>
+
+        <main id="workout-content">
+        </main>
+
+    </div>
+
+    <div id="info-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" id="modal-content-area">
+            <div class="p-6 md:p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-teal-700">Informações e Dicas</h2>
+                    <button id="close-modal-btn" class="text-stone-400 hover:text-stone-600 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                
+                <div class="space-y-6 text-stone-700">
+                    <section>
+                        <h3 class="font-bold text-lg mb-2 text-stone-800">Princípios para o Joelho</h3>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>**Ouça seu corpo:** Pare imediatamente se sentir dor aguda no joelho.</li>
+                            <li>**Foco na técnica:** A forma correta é mais importante que a carga.</li>
+                            <li>**Controle do movimento:** Faça os exercícios de forma lenta e controlada.</li>
+                            <li>**Aquecimento específico:** Ative o VMO e os glúteos antes dos treinos de perna.</li>
+                        </ul>
+                    </section>
+                    
+                    <section>
+                        <h3 class="font-bold text-lg mb-2 text-stone-800">Observações Gerais</h3>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>**Repetições:** 3-4 séries de 8-12 reps para hipertrofia; 6-8 para força. Exercícios para o joelho podem ter 12-20 reps com carga leve.</li>
+                            <li>**Descanso:** 60-90 segundos entre as séries.</li>
+                            <li>**Progressão:** Aumente gradualmente a carga ou as repetições, mantendo a boa forma.</li>
+                        </ul>
+                    </section>
+
+                    <section>
+                        <h3 class="font-bold text-lg mb-2 text-stone-800">Distribuição Semanal</h3>
+                        <p class="mb-4">Este gráfico mostra a distribuição de foco nos grupos musculares ao longo dos 5 dias de treino.</p>
+                        <div class="chart-container">
+                            <canvas id="muscle-chart"></canvas>
+                        </div>
+                    </section>
+
+                    <section>
+                        <h3 class="font-bold text-lg mb-2 text-stone-800">Cardio e Flexibilidade</h3>
+                        <p>**Cardio:** 2-3 vezes por semana, após o treino ou em dias alternados (20-40 min em intensidade moderada). Opções: Bicicleta, Esteira, Elíptico.</p>
+                        <p>**Flexibilidade:** Alongamentos estáticos no final de cada treino. Considere sessões de mobilidade 1-2 vezes por semana.</p>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const workoutData = {
+                dia1: {
+                    title: 'Peito, Tríceps e Abdômen',
+                    exercises: [
+                        { name: 'Supino com Barra', sets: '3-4 séries', reps: '6-10 repetições', focus: 'Foco em força e massa geral do peito.' },
+                        { name: 'Crucifixo Inclinado com Halteres', sets: '3 séries', reps: '10-12 repetições', focus: 'Use um banco inclinado ou eleve uma parte do colchonete para simular a inclinação.' },
+                        { name: 'Crossover (Polia Alta)', sets: '3 séries', reps: '10-15 repetições', focus: 'Una as mãos na frente do corpo, sentindo a contração máxima do peitoral.' },
+                        { name: 'Tríceps Testa com Halteres', sets: '3 séries', reps: '10-12 repetições', focus: 'Controle o movimento para proteger os cotovelos.' },
+                        { name: 'Tríceps Pulley (Crossover)', sets: '3 séries', reps: '10-15 repetições', focus: 'Mantenha os cotovelos fixos ao lado do corpo.' },
+                        { name: 'Prancha Abdominal', sets: '3 séries', reps: 'Até a falha técnica', focus: 'Mantenha o corpo reto, sem elevar ou baixar o quadril.' },
+                        { name: 'Abdominal Remador', sets: '3 séries', reps: '15-20 repetições', focus: 'Movimento completo, abraçando os joelhos.' }
+                    ]
+                },
+                dia2: {
+                    title: 'Costas e Bíceps',
+                    exercises: [
+                        { name: 'Remada Curvada com Halteres/Barra', sets: '3-4 séries', reps: '8-12 repetições', focus: 'Mantenha a coluna reta e puxe a barra em direção ao umbigo.' },
+                        { name: 'Puxada Alta (Crossover)', sets: '3-4 séries', reps: '10-15 repetições', focus: 'Simule uma puxada alta usando as polias do crossover e um banco.' },
+                        { name: 'Remada Unilateral com Halter (Serrote)', sets: '3 séries', reps: '8-12 reps por braço', focus: 'Puxe o halter em direção ao quadril, sentindo a contração das costas.' },
+                        { name: 'Rosca Direta com Halteres/Barra', sets: '3 séries', reps: '8-12 repetições', focus: 'Evite balançar o corpo.' },
+                        { name: 'Rosca Martelo com Halteres', sets: '3 séries', reps: '10-15 repetições', focus: 'Trabalha o bíceps e o braquial, contribuindo para a espessura do braço.' },
+                        { name: 'Hiperextensão Lombar (no banco/chão)', sets: '3 séries', reps: '12-15 repetições', focus: 'Movimento controlado para fortalecer a lombar.' }
+                    ]
+                },
+                dia3: {
+                    title: 'Pernas (Quadríceps e Estabilização do Joelho)',
+                    warmup: 'Deite-se e coloque uma bola entre os joelhos. Aperte a bola e contraia o quadríceps por 5-10 segundos. Repita 10-15 vezes para ativar o Vasto Medial.',
+                    exercises: [
+                        { name: 'Agachamento Livre com Halteres', sets: '3-4 séries', reps: '8-12 repetições', focus: 'Mantenha os joelhos alinhados com os pés, sem deixá-los "cair" para dentro.' },
+                        { name: 'Cadeira Extensora (foco no VMO)', sets: '3-4 séries', reps: '12-15 repetições', focus: 'Use carga leve. No final da extensão, contraia a parte interna da coxa por 1-2 segundos.' },
+                        { name: 'Afundo com Halteres', sets: '3 séries', reps: '8-12 reps por perna', focus: 'Mantenha o tronco ereto e o joelho da frente alinhado com o pé.' },
+                        { name: 'Wall Sit (Cadeira na Parede)', sets: '3 séries', reps: '30-60 segundos', focus: 'Fortalecimento isométrico. Mantenha os joelhos a 90 graus.' },
+                        { name: 'Cadeira Abdutora', sets: '3 séries', reps: '12-15 repetições', focus: 'Fortalece os músculos que estabilizam o quadril.' },
+                        { name: 'Elevação de Panturrilha em pé', sets: '3-4 séries', reps: '15-20 repetições', focus: 'Use um step para maior amplitude de movimento.' }
+                    ]
+                },
+                dia4: {
+                    title: 'Ombros e Abdômen/Oblíquos',
+                    exercises: [
+                        { name: 'Desenvolvimento com Halteres', sets: '3-4 séries', reps: '8-12 repetições', focus: 'Pode ser feito sentado ou em pé. Controle a descida.' },
+                        { name: 'Elevação Lateral com Halteres', sets: '3 séries', reps: '12-15 repetições', focus: 'Eleve os halteres até a altura dos ombros, sem usar impulso.' },
+                        { name: 'Elevação Frontal com Halteres', sets: '3 séries', reps: '10-12 repetições', focus: 'Movimento alternado ou simultâneo. Foco no deltoide anterior.' },
+                        { name: 'Remada Alta com Halteres', sets: '3 séries', reps: '10-15 repetições', focus: 'Puxe os halteres em direção ao queixo, liderando com os cotovelos.' },
+                        { name: 'Encolhimento com Halteres', sets: '3 séries', reps: '15-20 repetições', focus: 'Eleve os ombros em direção às orelhas para trabalhar o trapézio.' },
+                        { name: 'Rotação de Tronco com Bola', sets: '3 séries', reps: '15-20 reps por lado', focus: 'Mantenha o abdômen contraído e gire o tronco de forma controlada.' },
+                        { name: 'Abdominal Bicicleta', sets: '3 séries', reps: '15-20 reps por lado', focus: 'Movimento contínuo e controlado, focando nos oblíquos.' }
+                    ]
+                },
+                dia5: {
+                    title: 'Pernas (Posteriores, Glúteos e Estabilização do Quadril)',
+                    warmup: 'Deite-se e faça o exercício Ponte, elevando o quadril e contraindo os glúteos no topo por 2-3 segundos. Repita 15-20 vezes para ativar os glúteos.',
+                    exercises: [
+                        { name: 'Stiff com Halteres', sets: '3-4 séries', reps: '8-12 repetições', focus: 'Mantenha a coluna reta e sinta o alongamento nos isquiotibiais.' },
+                        { name: 'Cadeira Flexora', sets: '3-4 séries', reps: '10-15 repetições', focus: 'Controle a fase excêntrica (retorno) do movimento.' },
+                        { name: 'Elevação Pélvica (Hip Thrust)', sets: '3-4 séries', reps: '10-15 repetições', focus: 'Use um banco para apoiar as costas e um halter/anilha no quadril. Contração máxima dos glúteos.' },
+                        { name: 'Cadeira Adutora', sets: '3 séries', reps: '12-15 repetições', focus: 'Fortalece a parte interna da coxa.' },
+                        { name: 'Clamshell com Elástico', sets: '3 séries', reps: '15-20 reps por lado', focus: 'Deite-se de lado e use um elástico acima dos joelhos. Abra o joelho de cima para ativar o glúteo médio.' },
+                        { name: 'Elevação de Panturrilha Sentado', sets: '3-4 séries', reps: '15-20 repetições', focus: 'Use halteres sobre os joelhos para a resistência.' }
+                    ]
+                }
+            };
+
+            const contentEl = document.getElementById('workout-content');
+            const dayButtons = document.querySelectorAll('.day-btn');
+            let currentDay = 'dia1';
+
+            function renderWorkout(day) {
+                const data = workoutData[day];
+                if (!data) return;
+
+                let warmupHtml = '';
+                if (data.warmup) {
+                    warmupHtml = `
+                        <div class="bg-teal-50 border-l-4 border-teal-500 text-teal-800 p-4 rounded-r-lg mb-6">
+                            <h4 class="font-bold">Aquecimento Específico</h4>
+                            <p class="mt-1">${data.warmup}</p>
+                        </div>
+                    `;
+                }
+
+                const exercisesHtml = data.exercises.map(ex => `
+                    <div class="bg-white rounded-xl shadow-md p-5 transition-transform hover:scale-[1.02]">
+                        <h4 class="font-bold text-lg text-stone-900">${ex.name}</h4>
+                        <p class="text-teal-600 font-semibold mt-1">${ex.sets} de ${ex.reps}</p>
+                        <p class="text-stone-600 mt-2">${ex.focus}</p>
+                    </div>
+                `).join('');
+
+                contentEl.innerHTML = `
+                    <div class="text-center mb-6">
+                        <h2 class="text-2xl font-bold">${data.title}</h2>
+                    </div>
+                    ${warmupHtml}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                        ${exercisesHtml}
+                    </div>
+                `;
+            }
+
+            function updateActiveButton(selectedDay) {
+                dayButtons.forEach(btn => {
+                    // Remove classes do estado não-ativo
+                    btn.classList.remove('bg-teal-600', 'text-white', 'active-day-visual');
+                    // Adiciona classes do estado padrão
+                    btn.classList.add('bg-white', 'hover:bg-teal-50');
+
+                    if (btn.dataset.day === selectedDay) {
+                        // Remove classes do estado padrão
+                        btn.classList.remove('bg-white', 'hover:bg-teal-50');
+                        // Adiciona classes do estado ativo
+                        btn.classList.add('bg-teal-600', 'text-white', 'active-day-visual');
+                    }
+                });
+            }
+
+            const infoModal = document.getElementById('info-modal');
+            const infoBtn = document.getElementById('info-btn');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const modalContentArea = document.getElementById('modal-content-area');
+
+            let chartInstance = null;
+            function renderChart() {
+                if (chartInstance) {
+                    chartInstance.destroy();
+                }
+                const ctx = document.getElementById('muscle-chart').getContext('2d');
+                chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Pernas & Glúteos', 'Peito & Tríceps', 'Costas & Bíceps', 'Ombros & Abdômen'],
+                        datasets: [{
+                            label: 'Foco Semanal',
+                            data: [2, 1, 1, 1],
+                            backgroundColor: [
+                                'rgba(20, 184, 166, 0.7)', // teal-500
+                                'rgba(244, 63, 94, 0.7)', // rose-500
+                                'rgba(59, 130, 246, 0.7)', // blue-500
+                                'rgba(249, 115, 22, 0.7)' // orange-500
+                            ],
+                            borderColor: '#ffffff',
+                            borderWidth: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    font: {
+                                        size: 14,
+                                        family: 'Inter'
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        const value = context.raw;
+                                        return label + value + (value > 1 ? ' dias' : ' dia');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            infoBtn.addEventListener('click', () => {
+                infoModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                renderChart();
+            });
+
+            closeModalBtn.addEventListener('click', () => {
+                infoModal.classList.add('hidden');
+                document.body.style.overflow = '';
+            });
+
+            infoModal.addEventListener('click', (e) => {
+                if (e.target === infoModal) {
+                    infoModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+            });
+
+            // Adiciona event listeners aos botões de dia
+            dayButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    currentDay = button.dataset.day;
+                    renderWorkout(currentDay);
+                    updateActiveButton(currentDay);
+                });
+            });
+
+            // Renderiza o treino do dia 1 e atualiza o botão ativo ao carregar a página
+            renderWorkout(currentDay);
+            updateActiveButton(currentDay);
+        });
+    </script>
+</body>
+</html>
